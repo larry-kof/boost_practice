@@ -31,5 +31,6 @@
 *.out
 *.app
 .DS_Store
-/Build
-/Index
+/*/Build
+/*/Index
+*.xcuserstate
