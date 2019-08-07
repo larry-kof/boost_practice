@@ -1,9 +1,10 @@
 //
-//  net.hpp
-//  boost_practice
+// Copyright (c) 2016-2017 Vinnie Falco (vinnie dot falco at gmail dot com)
 //
-//  Created by larry-kof on 2019/7/27.
-//  Copyright © 2019 larry-kof. All rights reserved.
+// Distributed under the Boost Software License, Version 1.0. (See accompanying
+// file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
+//
+// Official repository: https://github.com/boostorg/beast
 //
 
 #ifndef net_h
