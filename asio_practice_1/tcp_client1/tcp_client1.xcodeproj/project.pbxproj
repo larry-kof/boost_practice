@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		186F563222F6AB47008765D0 /* main.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 186F563122F6AB47008765D0 /* main.cpp */; };
+		4ACFCAE522FBBE7000F38D01 /* boost_client_async.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4ACFCAE322FBBE7000F38D01 /* boost_client_async.cpp */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -25,6 +26,9 @@
 /* Begin PBXFileReference section */
 		186F562E22F6AB47008765D0 /* tcp_client1 */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = tcp_client1; sourceTree = BUILT_PRODUCTS_DIR; };
 		186F563122F6AB47008765D0 /* main.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = main.cpp; sourceTree = "<group>"; };
+		4ACFCAE222FBBE5C00F38D01 /* Buffer.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = Buffer.h; sourceTree = "<group>"; };
+		4ACFCAE322FBBE7000F38D01 /* boost_client_async.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = boost_client_async.cpp; sourceTree = "<group>"; };
+		4ACFCAE422FBBE7000F38D01 /* boost_client_async.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = boost_client_async.hpp; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -41,6 +45,7 @@
 		186F562522F6AB47008765D0 = {
 			isa = PBXGroup;
 			children = (
+				4ACFCAE122FBBE5C00F38D01 /* common */,
 				186F563022F6AB47008765D0 /* tcp_client1 */,
 				186F562F22F6AB47008765D0 /* Products */,
 			);
@@ -58,8 +63,19 @@
 			isa = PBXGroup;
 			children = (
 				186F563122F6AB47008765D0 /* main.cpp */,
+				4ACFCAE322FBBE7000F38D01 /* boost_client_async.cpp */,
+				4ACFCAE422FBBE7000F38D01 /* boost_client_async.hpp */,
 			);
 			path = tcp_client1;
+			sourceTree = "<group>";
+		};
+		4ACFCAE122FBBE5C00F38D01 /* common */ = {
+			isa = PBXGroup;
+			children = (
+				4ACFCAE222FBBE5C00F38D01 /* Buffer.h */,
+			);
+			name = common;
+			path = ../common;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -119,6 +135,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				186F563222F6AB47008765D0 /* main.cpp in Sources */,
+				4ACFCAE522FBBE7000F38D01 /* boost_client_async.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
