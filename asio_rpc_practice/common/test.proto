@@ -1,0 +1,23 @@
+syntax = "proto3";
+
+package rpc.test;
+
+option cc_generic_services = true;
+option java_generic_services = true;
+option py_generic_services = true;
+
+message TestReq
+{
+    int32 id = 1;
+    string message = 2;
+};
+
+message TestRes
+{
+    int32 id = 1;
+    string message = 2;
+};
+
+service TestService {
+    rpc TestSolve (TestReq) returns (TestRes);
+};
