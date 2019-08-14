@@ -3,8 +3,9 @@
 
 extern void fail(const boost::system::error_code &ec,
                  std::string message);
-rpc_session::rpc_session(tcp::socket &&socket)
+rpc_session::rpc_session(tcp::socket &&socket, SessionEraseFunc sessionCb)
     : socket_(std::move(socket)), service_(new TestServiceImpl())
+    , sessionCb_(sessionCb)
 {
 }
 
@@ -27,9 +28,15 @@ void rpc_session::on_read(
     if (ec)
     {
         fail(ec, "on read");
+        if (ec.value() == net::error::eof)
+        {
+            std::cout << "disconnect from " << socket_.remote_endpoint().address() << ":" << socket_.remote_endpoint().port() << std::endl;
+        }
         socket_.shutdown(net::socket_base::shutdown_send);
+        if(sessionCb_) sessionCb_(shared_from_this());
         return;
     }
+    inputBuffer_.ensureWritableBytes(bytes);
     inputBuffer_.append(&*(readBuffer->begin()), bytes);
     while (inputBuffer_.readableBytes() >= kMinMessageLen)
     {
@@ -51,7 +58,7 @@ void rpc_session::on_read(
                     service_->GetResponsePrototype(method).New();
                 service_->CallMethod(
                     method, NULL, request.get(), response,
-                    NewCallback(this, doneCallback, response));
+                    NewCallback(this, &rpc_session::doneCallback, response));
             }
         }
         else
@@ -67,7 +74,8 @@ void rpc_session::doneCallback(google::protobuf::Message *response)
     std::string message = response->SerializeAsString();
 
     outputBuffer_.append(message);
-    outputBuffer_.prependInt32(message.length());
+    int32_t len = message.length();
+    outputBuffer_.prependInt32(len);
 
     socket_.async_write_some(
         net::buffer(net::const_buffer(outputBuffer_.peek(),
@@ -83,6 +91,7 @@ void rpc_session::on_write(const boost::system::error_code &ec,
     {
         fail(ec, "on write");
         socket_.shutdown(net::socket_base::shutdown_send);
+        if(sessionCb_) sessionCb_(shared_from_this());
         return;
     }
     outputBuffer_.retrieve(bytes);
@@ -93,10 +102,6 @@ void rpc_session::on_write(const boost::system::error_code &ec,
                 outputBuffer_.peek(), outputBuffer_.readableBytes())),
             std::bind(&rpc_session::on_write, shared_from_this(),
                       std::placeholders::_1, std::placeholders::_2));
-    }
-    else
-    {
-        socket_.shutdown(net::socket_base::shutdown_both);
     }
     
 }
