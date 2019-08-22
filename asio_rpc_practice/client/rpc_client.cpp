@@ -1,5 +1,6 @@
 
 #include "rpc_client.hpp"
+#include <iostream>
 
 void fail(const boost::system::error_code &ec, std::string message)
 {

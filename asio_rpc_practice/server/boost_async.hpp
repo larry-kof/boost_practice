@@ -26,7 +26,7 @@ private:
     tcp::acceptor acceptor_;
     tcp::socket socket_;
     std::mutex mutex_;
-    std::vector<std::shared_ptr<rpc_session>> sessions_  GUARDED_BY(mutex_);
+    std::vector<std::shared_ptr<rpc_session>> sessions_;
     void do_accept();
     void on_accept(const boost::system::error_code &ec);
 

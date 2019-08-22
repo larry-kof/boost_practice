@@ -66,6 +66,7 @@ void rpc_session::on_read(
             break;
         }
     }
+    do_read();
 }
 
 void rpc_session::doneCallback(google::protobuf::Message *response)

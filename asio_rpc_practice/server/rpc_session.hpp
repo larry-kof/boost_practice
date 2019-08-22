@@ -12,7 +12,7 @@
 
 #include "../common/Buffer.h"
 #include "../common/net.hpp"
-#include "../common/test.pb.h"
+#include "test.pb.h"
 
 class TestServiceImpl : public rpc::test::TestService
 {

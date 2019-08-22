@@ -14,11 +14,10 @@ message(STATUS ${SRC_LIST})
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Werror -Wwrite-strings -Wshadow -Wno-unused-parameter -Wno-sign-conversion -std=c++11")
 
-if("${CMAKE_SYSTEM_NAME}" STREQUAL "Darwin")
-else()
+if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wthread-safety")
 endif()
 
 link_directories(${Boost_LIBRARY_DIRS})
 add_executable(tcp_server ${SRC_LIST})
-target_link_libraries(tcp_server ${Boost_LIBRARIES})
+target_link_libraries(tcp_server ${Boost_LIBRARIES} pthread)

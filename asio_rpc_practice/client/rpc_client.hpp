@@ -10,7 +10,7 @@
 #include <vector>
 #include <map>
 #include "../common/net.hpp"
-#include "../common/test.pb.h"
+#include "test.pb.h"
 #include "../common/Buffer.h"
 
 using namespace google::protobuf;

@@ -1,8 +1,6 @@
 cmake_minimum_required(VERSION 3.6)
 project(beast_server)
 
-set(BOOST_ROOT "/usr/local/")
-
 find_package(Boost COMPONENTS system REQUIRED)
 
 include_directories(${Boost_INCLUDE_DIRS})
@@ -14,8 +12,7 @@ message(STATUS ${SRC_LIST})
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Werror -Wwrite-strings -Wshadow -Wno-unused-parameter -Wno-sign-conversion -std=c++11")
 
-if("${CMAKE_SYSTEM_NAME}" STREQUAL "Darwin")
-else()
+if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wthread-safety")
 endif()
 
