@@ -38,6 +38,7 @@ private:
     void on_read(const boost::system::error_code &ec, size_t bytes, const ReadBufferPtr &readBuffer);
     void on_rpc_callback(const RpcMessagePtr &rpcMsg, rpc_codec::CodecError error);
     void done_callback(google::protobuf::Message *response, int32_t id);
+    void time_out(const boost::system::error_code& ec);
 
     tcp::socket socket_;
     SessionOverFunc sessionOverFunc_;
@@ -47,6 +48,7 @@ private:
     std::atomic<int> id_;
     std::map<int, std::tuple<google::protobuf::Message *, google::protobuf::Closure *>> reqCallbacks_;
     std::mutex mutex_;
+    boost_net::steady_timer timeOut_;
 
     friend class rpc_codec;
 };

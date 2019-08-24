@@ -32,7 +32,7 @@ int main(int argc, char **argv)
     auto server = std::make_shared<rpc_server>(port);
     TestServerImpl testService;
     server->registerService(&testService);
-    // server.set_thread_num(2);
+    server->set_thread_num(4);
     server->run();
     return 0;
 }

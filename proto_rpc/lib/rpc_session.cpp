@@ -7,31 +7,70 @@
 using namespace bean::net;
 
 rpc_session::rpc_session(tcp::socket &&socket, SessionOverFunc sessionOver)
-    : strand_(socket.get_executor()), socket_(std::move(socket)), codec_(std::bind(&rpc_session::on_rpc_callback, this, std::placeholders::_1, std::placeholders::_2)), services_(nullptr), id_(0), sessionOverFunc_(std::move(sessionOver))
+    : strand_(socket.get_executor()), timeOut_(socket.get_io_context()), socket_(std::move(socket)),
+      codec_(std::bind(&rpc_session::on_rpc_callback, this, std::placeholders::_1,
+                       std::placeholders::_2)),
+      services_(nullptr), id_(0), sessionOverFunc_(std::move(sessionOver))
 {
 }
 
-void rpc_session::run()
-{
-    do_read();
-}
+void rpc_session::run() { do_read(); }
 
 void rpc_session::do_read()
 {
     auto readBuffer = std::make_shared<std::vector<char>>(100);
-    socket_.async_read_some(boost_net::buffer(*readBuffer),
-                            std::bind(&rpc_session::on_read, shared_from_this(), std::placeholders::_1, std::placeholders::_2, readBuffer));
+    socket_.async_read_some(
+        boost_net::buffer(*readBuffer),
+        boost_net::bind_executor(strand_, std::bind(&rpc_session::on_read, shared_from_this(),
+                                                    std::placeholders::_1, std::placeholders::_2,
+                                                    readBuffer)));
+    timeOut_.expires_after(std::chrono::seconds(2));
 }
 
-void rpc_session::on_read(const boost::system::error_code &ec, size_t bytes, const ReadBufferPtr &readBuffer)
+void rpc_session::time_out(const boost::system::error_code &ec)
 {
+    if (!ec)
+    {
+        // time out
+        if (socket_.is_open())
+        {
+            boost::system::error_code socketEc;
+            socket_.shutdown(boost_net::socket_base::shutdown_both, socketEc);
+            if (socketEc && socketEc.value() != boost::asio::error::not_connected)
+            {
+                fail(socketEc, "shutdown");
+            }
+        }
+        std::cerr << " time out " << std::endl;
+        sessionOverFunc_(shared_from_this());
+    }
+    else if (ec.value() == boost::asio::error::operation_aborted)
+    {
+    }
+}
+
+void rpc_session::on_read(const boost::system::error_code &ec, size_t bytes,
+                          const ReadBufferPtr &readBuffer)
+{
+    timeOut_.cancel();
     if (ec)
     {
         if (socket_.is_open())
         {
+            if (ec.value() == boost::asio::error::eof)
+            {
+                try
+                {
+                    std::cout << " disconect from " << socket_.remote_endpoint() << std::endl;
+                }
+                catch (const std::exception &e)
+                {
+                    std::cout << e.what() << std::endl;
+                }
+            }
             boost::system::error_code socketEc;
             socket_.shutdown(boost_net::socket_base::shutdown_send, socketEc);
-            if (socketEc)
+            if (socketEc && socketEc.value() != boost::asio::error::not_connected)
             {
                 fail(socketEc, "shutdown");
             }
@@ -73,17 +112,22 @@ void rpc_session::on_rpc_callback(const RpcMessagePtr &rpcMsg, rpc_codec::CodecE
             if (itService != services_->end())
             {
                 google::protobuf::Service *service = itService->second;
-                const google::protobuf::MethodDescriptor *method = service->GetDescriptor()->FindMethodByName(methodName);
+                const google::protobuf::MethodDescriptor *method =
+                    service->GetDescriptor()->FindMethodByName(methodName);
 
                 if (method)
                 {
-                    std::unique_ptr<google::protobuf::Message> request(service->GetRequestPrototype(method).New());
+                    std::unique_ptr<google::protobuf::Message> request(
+                        service->GetRequestPrototype(method).New());
 
                     if (request->ParseFromString(rpcMsg->request()))
                     {
-                        google::protobuf::Message *response = service->GetResponsePrototype(method).New();
+                        google::protobuf::Message *response =
+                            service->GetResponsePrototype(method).New();
                         int32_t id = rpcMsg->id();
-                        service->CallMethod(method, NULL, request.get(), response, NewCallback(this, &rpc_session::done_callback, response, id));
+                        service->CallMethod(
+                            method, NULL, request.get(), response,
+                            NewCallback(this, &rpc_session::done_callback, response, id));
                         errorCode = NO_ERROR;
                     }
                     else
@@ -178,8 +222,7 @@ void rpc_session::set_services(const std::map<std::string, google::protobuf::Ser
 void rpc_session::CallMethod(const google::protobuf::MethodDescriptor *method,
                              google::protobuf::RpcController *controller,
                              const google::protobuf::Message *request,
-                             google::protobuf::Message *response,
-                             google::protobuf::Closure *done)
+                             google::protobuf::Message *response, google::protobuf::Closure *done)
 {
     std::shared_ptr<RpcMessage> rpcMsg(RpcMessage::default_instance().New());
     int32_t id = id_.fetch_add(1);

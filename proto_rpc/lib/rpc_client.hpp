@@ -19,12 +19,20 @@ class rpc_client : private boost::noncopyable
 public:
     typedef std::function<void(CustomService_Stub *)> ConnectionCb;
     rpc_client(const std::string &address, int port, ConnectionCb connecionCb)
-        : ioc_(), socket_(ioc_), endpoint_(boost_net::ip::make_address_v4(address), port), connectionCb_(std::move(connecionCb))
+        : ioc_(), socket_(ioc_), timeOut_(ioc_), endpoint_(boost_net::ip::make_address_v4(address), port), connectionCb_(std::move(connecionCb))
     {
     }
     void connect()
     {
         socket_.async_connect(endpoint_, std::bind(&rpc_client::on_connect, this, std::placeholders::_1));
+        timeOut_.expires_after(std::chrono::seconds(2));
+        timeOut_.async_wait([this](const boost::system::error_code& ec){
+            if(!ec)
+            {
+                std::cout << "time out " << std::endl;
+                ioc_.stop();
+            }
+        });
     }
     void run()
     {
@@ -39,6 +47,7 @@ public:
 private:
     void on_connect(const boost::system::error_code &ec)
     {
+        timeOut_.cancel();
         if (ec)
         {
             fail(ec, "connect");
@@ -64,6 +73,7 @@ private:
     std::shared_ptr<rpc_session> session_;
     tcp::endpoint endpoint_;
     ConnectionCb connectionCb_;
+    boost::asio::steady_timer timeOut_;
 };
 } // namespace net
 } // namespace bean
