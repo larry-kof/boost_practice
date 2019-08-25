@@ -1,7 +1,9 @@
 cmake_minimum_required(VERSION 3.6)
 project(example)
 
-find_package(Boost 1.69 COMPONENTS System REQUIRED)
+set(BOOST_ROOT /usr/local/boost)
+set(BOOST_LIBRARYDIR /usr/local/boost/lib)
+find_package(Boost 1.69 COMPONENTS system REQUIRED)
 find_package(Protobuf REQUIRED)
 find_package(ZLIB REQUIRED)
 
@@ -31,4 +33,4 @@ target_link_libraries(client ${Boost_LIBRARIES} ${Protobuf_LIBRARIES} ${ZLIB_LIB
 add_executable(server server.cpp ${PROJECT_BINARY_DIR}/test.pb.cc)
 add_dependencies(server example_proto_source)
 add_dependencies(server BeanRpc)
-target_link_libraries(server ${Boost_LIBRARIES} ${Protobuf_LIBRARIES} ${ZLIB_LIBRARIES} BeanRpc)
+target_link_libraries(server ${Boost_LIBRARIES} ${Protobuf_LIBRARIES} ${ZLIB_LIBRARIES} BeanRpc -lz)

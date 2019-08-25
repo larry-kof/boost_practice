@@ -1,7 +1,9 @@
 cmake_minimum_required(VERSION 3.6)
 project(RpcLibrary)
 
-find_package(Boost 1.69 COMPONENTS System REQUIRED)
+set(BOOST_ROOT /usr/local/boost)
+set(BOOST_LIBRARYDIR /usr/local/boost/lib)
+find_package(Boost 1.69 COMPONENTS system REQUIRED)
 find_package(Protobuf REQUIRED)
 
 set(CUR_DIR ${CMAKE_CURRENT_SOURCE_DIR})
@@ -25,4 +27,4 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Werror -Wwrite-strings -Wshadow -Wno-un
 link_directories(${Boost_LIBRARY_DIRS} ${Protobuf_LIBRARY_DIRS})
 add_library(BeanRpc ${SRC_LIST} ${PROJECT_BINARY_DIR}/rpc.pb.cc)
 add_dependencies(BeanRpc proto_source)
-target_link_libraries(BeanRpc ${Boost_LIBRARIES} ${Protobuf_LIBRARIES})
+target_link_libraries(BeanRpc ${Boost_LIBRARIES} ${Protobuf_LIBRARIES} -lz)
