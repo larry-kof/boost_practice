@@ -1,8 +1,9 @@
 cmake_minimum_required(VERSION 3.6)
 project(example)
 
-set(BOOST_ROOT /usr/local/boost)
-set(BOOST_LIBRARYDIR /usr/local/boost/lib)
+if(NOT ("${BOOST_ROOT_PATH}" STREQUAL ""))
+    set(BOOST_ROOT ${BOOST_ROOT_PATH})
+endif()
 find_package(Boost 1.69 COMPONENTS system REQUIRED)
 find_package(Protobuf REQUIRED)
 find_package(ZLIB REQUIRED)
