@@ -3,6 +3,9 @@
 
 #include <memory>
 #include <functional>
+#include <list>
+#include <mutex>
+#include <thread>
 #include "common/net.hpp"
 #include "common/Buffer.h"
 
@@ -31,10 +34,18 @@ public:
     void send_rpc_msg(const std::shared_ptr<rpc_session> &session, const RpcMessagePtr &rpcMsg);
 
 private:
+    struct BufferValue {
+    public:
+        bool valid;
+        std::shared_ptr<Buffer> buffer;
+        BufferValue():valid(true), buffer(std::make_shared<Buffer>()){}
+    };
+
     bool validate_checksum(const char *buf, int32_t len);
-    void on_write(const boost::system::error_code &ec, size_t bytes, const std::shared_ptr<rpc_session> &session);
+    void on_write(const boost::system::error_code &ec, size_t bytes, const std::shared_ptr<rpc_session> &session, std::list<BufferValue>::pointer bufferValue);
     Buffer inputBuffer_;
-    Buffer outputBuffer_;
+    std::list< BufferValue > outputBuffers_;
+    std::mutex mutexBuffers_;
     RpcCallbackFunc rpcCallback_;
 
     const int kMinMessageLen = sizeof(int32_t) + sizeof(int32_t);

@@ -1,6 +1,7 @@
 #include "rpc_codec.h"
 #include "rpc.pb.h"
 #include <zlib.h>
+#include <tuple>
 #include "rpc_session.h"
 
 using namespace bean::net;
@@ -8,6 +9,7 @@ using namespace bean::net;
 rpc_codec::rpc_codec(RpcCallbackFunc &&cb)
     : rpcCallback_(std::move(cb))
 {
+    outputBuffers_.emplace_back();
 }
 
 void rpc_codec::on_read(size_t bytes, const ReadBufferPtr &readBuffer)
@@ -54,20 +56,44 @@ void rpc_codec::send_rpc_msg(const std::shared_ptr<rpc_session> &session, const 
 {
     int32_t len = rpcMsg->ByteSize();
 
-    outputBuffer_.ensureWritableBytes(len);
-    uint8_t *start = reinterpret_cast<uint8_t *>(outputBuffer_.beginWrite());
+    Buffer* outputBuffer = NULL;
+    std::list<BufferValue>::pointer bufferValue = NULL;
+    {
+        std::lock_guard<std::mutex> lck(mutexBuffers_);
+        for(auto it = outputBuffers_.begin(); it != outputBuffers_.end(); it++)
+        {
+            if(it->valid)
+            {
+                it->valid = false;
+                bufferValue = &*it;
+                outputBuffer = bufferValue->buffer.get();
+                break;
+            }
+        }
+        if(outputBuffer == NULL)
+        {
+            outputBuffers_.emplace_back();
+            std::list<BufferValue>::reference newBufferValueRef = outputBuffers_.back();
+            newBufferValueRef.valid = false;
+            bufferValue = &newBufferValueRef;
+            outputBuffer = bufferValue->buffer.get();
+        }
+    }
+
+    outputBuffer->ensureWritableBytes(len);
+    uint8_t *start = reinterpret_cast<uint8_t *>(outputBuffer->beginWrite());
     rpcMsg->SerializeWithCachedSizesToArray(start);
-    outputBuffer_.hasWritten(len);
+    outputBuffer->hasWritten(len);
 
-    int32_t checksum = adler32(1, static_cast<const Bytef *>((const void *)outputBuffer_.peek()), outputBuffer_.readableBytes());
-    outputBuffer_.appendInt32(checksum);
-    outputBuffer_.prependInt32(len + sizeof(checksum));
+    int32_t checksum = adler32(1, static_cast<const Bytef *>((const void *)outputBuffer->peek()), outputBuffer->readableBytes());
+    outputBuffer->appendInt32(checksum);
+    outputBuffer->prependInt32(len + sizeof(checksum));
 
-    session->socket_.async_write_some(boost_net::buffer(outputBuffer_.peek(), outputBuffer_.readableBytes()),
-                                      std::bind(&rpc_codec::on_write, this, std::placeholders::_1, std::placeholders::_2, session));
+    session->socket_.async_write_some(boost_net::buffer(outputBuffer->peek(), outputBuffer->readableBytes()),
+                                      std::bind(&rpc_codec::on_write, this, std::placeholders::_1, std::placeholders::_2, session, bufferValue));
 }
 
-void rpc_codec::on_write(const boost::system::error_code &ec, size_t bytes, const std::shared_ptr<rpc_session> &session)
+void rpc_codec::on_write(const boost::system::error_code &ec, size_t bytes, const std::shared_ptr<rpc_session> &session, std::list<BufferValue>::pointer bufferValue)
 {
     if (ec)
     {
@@ -75,10 +101,14 @@ void rpc_codec::on_write(const boost::system::error_code &ec, size_t bytes, cons
         session->socket_.shutdown(boost_net::socket_base::shutdown_send);
         return;
     }
-    outputBuffer_.retrieve(bytes);
-    if (outputBuffer_.readableBytes() > 0)
+    bufferValue->buffer->retrieve(bytes);
+    if (bufferValue->buffer->readableBytes() > 0)
     {
-        session->socket_.async_write_some(boost_net::buffer(outputBuffer_.peek(), outputBuffer_.readableBytes()),
-                                          std::bind(&rpc_codec::on_write, this, std::placeholders::_1, std::placeholders::_2, session));
+        session->socket_.async_write_some(boost_net::buffer(bufferValue->buffer->peek(), bufferValue->buffer->readableBytes()),
+                                          std::bind(&rpc_codec::on_write, this, std::placeholders::_1, std::placeholders::_2, session, bufferValue));
+    }
+    else if (bufferValue->buffer->readableBytes() == 0)
+    {
+        bufferValue->valid = true;
     }
 }
