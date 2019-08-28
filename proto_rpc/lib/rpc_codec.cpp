@@ -98,7 +98,11 @@ void rpc_codec::on_write(const boost::system::error_code &ec, size_t bytes, cons
     if (ec)
     {
         fail(ec, "on write");
+        #ifdef USE_SSL
+        session->socket_.lowest_layer().shutdown(boost_net::socket_base::shutdown_send);
+        #else
         session->socket_.shutdown(boost_net::socket_base::shutdown_send);
+        #endif
         return;
     }
     bufferValue->buffer->retrieve(bytes);

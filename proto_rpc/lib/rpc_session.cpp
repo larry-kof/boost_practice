@@ -6,15 +6,62 @@
 
 using namespace bean::net;
 
+#ifdef USE_SSL
+rpc_session::rpc_session(tcp::socket &&socket, boost_net::ssl::context& context, SessionOverFunc sessionOver, SSLComplete sslComplete)
+    : strand_(socket.get_executor()), timeOut_(socket.get_io_context()), socket_(std::move(socket), context),sslComplete_(std::move(sslComplete)),
+#else
 rpc_session::rpc_session(tcp::socket &&socket, SessionOverFunc sessionOver)
     : strand_(socket.get_executor()), timeOut_(socket.get_io_context()), socket_(std::move(socket)),
+#endif
       codec_(std::bind(&rpc_session::on_rpc_callback, this, std::placeholders::_1,
                        std::placeholders::_2)),
       services_(nullptr), id_(0), sessionOverFunc_(std::move(sessionOver))
 {
 }
 
-void rpc_session::run() { do_read(); }
+#ifdef USE_SSL
+void rpc_session::do_handshake(bool isServer)
+{
+    auto self = shared_from_this();
+    auto stream_type = isServer ? boost_net::ssl::stream_base::server : boost_net::ssl::stream_base::client;
+    socket_.async_handshake(stream_type,
+    [this, self](const boost::system::error_code& ec){
+        if(ec)
+        {
+            fail(ec ,"ssl hand shake");
+            if(sslComplete_) sslComplete_(false);
+            return;
+        }
+        if(sslComplete_)
+        {
+            sslComplete_(true);
+        }
+        do_read();
+    });
+}
+#endif
+
+void rpc_session::run(bool isServer) 
+{ 
+#ifdef USE_SSL
+    if( !isServer)
+    {
+        socket_.set_verify_mode(boost::asio::ssl::verify_peer);
+        socket_.set_verify_callback([](bool preverified, boost_net::ssl::verify_context& ctx)
+        {
+            char subject_name[256];
+            X509 *cert = X509_STORE_CTX_get_current_cert(ctx.native_handle());
+            X509_NAME_oneline(X509_get_subject_name(cert), subject_name, 256);
+            std::cout << "Verifying " << subject_name << "\n";
+
+            return preverified;
+        });
+    }
+    do_handshake(isServer);
+#else
+    do_read(); 
+#endif
+}
 
 void rpc_session::do_read()
 {
@@ -32,10 +79,18 @@ void rpc_session::time_out(const boost::system::error_code &ec)
     if (!ec)
     {
         // time out
+#ifdef USE_SSL
+        if (socket_.lowest_layer().is_open())
+#else
         if (socket_.is_open())
+#endif
         {
             boost::system::error_code socketEc;
+#ifdef USE_SSL
+            socket_.lowest_layer().shutdown(boost_net::socket_base::shutdown_both, socketEc);
+#else
             socket_.shutdown(boost_net::socket_base::shutdown_both, socketEc);
+#endif
             if (socketEc && socketEc.value() != boost::asio::error::not_connected)
             {
                 fail(socketEc, "shutdown");
@@ -55,13 +110,22 @@ void rpc_session::on_read(const boost::system::error_code &ec, size_t bytes,
     timeOut_.cancel();
     if (ec)
     {
+#ifdef USE_SSL
+        if (socket_.lowest_layer().is_open())
+#else
         if (socket_.is_open())
+#endif
         {
             if (ec.value() == boost::asio::error::eof)
             {
                 try
                 {
+#ifdef USE_SSL
+                    std::cout << " disconect from " << socket_.lowest_layer().remote_endpoint() << std::endl;
+#else
                     std::cout << " disconect from " << socket_.remote_endpoint() << std::endl;
+#endif
+
                 }
                 catch (const std::exception &e)
                 {
@@ -69,7 +133,11 @@ void rpc_session::on_read(const boost::system::error_code &ec, size_t bytes,
                 }
             }
             boost::system::error_code socketEc;
+#ifdef USE_SSL
+            socket_.lowest_layer().shutdown(boost_net::socket_base::shutdown_send, socketEc);
+#else
             socket_.shutdown(boost_net::socket_base::shutdown_send, socketEc);
+#endif
             if (socketEc && socketEc.value() != boost::asio::error::not_connected)
             {
                 fail(socketEc, "shutdown");
@@ -84,10 +152,18 @@ void rpc_session::on_read(const boost::system::error_code &ec, size_t bytes,
 
 void rpc_session::disconnect()
 {
+#ifdef USE_SSL
+    if (socket_.lowest_layer().is_open())
+#else
     if (socket_.is_open())
+#endif
     {
         boost::system::error_code ec;
+#ifdef USE_SSL
+        socket_.lowest_layer().shutdown(boost_net::socket_base::shutdown_send, ec);
+#else
         socket_.shutdown(boost_net::socket_base::shutdown_send, ec);
+#endif
         if (ec)
         {
             fail(ec, "shutdown");

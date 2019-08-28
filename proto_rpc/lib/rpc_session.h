@@ -13,17 +13,29 @@
 #include <mutex>
 #include <functional>
 
+#ifdef USE_SSL
+#include <boost/asio/ssl.hpp>
+#endif
+
 namespace bean
 {
 namespace net
 {
 class rpc_session;
 typedef std::function<void(const std::shared_ptr<rpc_session> &)> SessionOverFunc;
+#ifdef USE_SSL
+typedef std::function<void(bool)> SSLComplete;
+#endif
 class rpc_session : private boost::noncopyable, public std::enable_shared_from_this<rpc_session>, public google::protobuf::RpcChannel
 {
 public:
+#ifdef USE_SSL
+    rpc_session(tcp::socket &&socket, boost_net::ssl::context& context, SessionOverFunc sessionOver, 
+    SSLComplete sslComplete = NULL);
+#else
     rpc_session(tcp::socket &&socket, SessionOverFunc sessionOver);
-    void run();
+#endif
+    void run(bool isServer = false);
     void disconnect();
     void set_services(const std::map<std::string, google::protobuf::Service *> *services);
 
@@ -40,8 +52,17 @@ private:
     void done_callback(google::protobuf::Message *response, int32_t id);
     void time_out(const boost::system::error_code& ec);
 
+#ifdef USE_SSL
+    void do_handshake(bool isServer);
+#endif
+
+#ifdef USE_SSL
+    boost_net::ssl::stream<tcp::socket> socket_;
+#else
     tcp::socket socket_;
+#endif
     SessionOverFunc sessionOverFunc_;
+    SSLComplete sslComplete_;
     boost_net::strand<boost_net::io_context::executor_type> strand_;
     rpc_codec codec_;
     const std::map<std::string, google::protobuf::Service *> *services_;

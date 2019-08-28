@@ -14,6 +14,10 @@
 #include "common/net.hpp"
 #include "rpc_session.h"
 
+#ifdef USE_SSL
+#include <boost/asio/ssl.hpp>
+#endif
+
 namespace bean
 {
 namespace net
@@ -46,6 +50,13 @@ private:
     std::vector<std::shared_ptr<rpc_session>> sessions_;
 
     std::mutex mutex_;
+#ifdef USE_SSL
+    boost_net::ssl::context context_;
+    std::string get_password() const
+    {
+        return "test";
+    }
+#endif
 };
 
 } // namespace net

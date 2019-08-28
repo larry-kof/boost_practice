@@ -10,6 +10,9 @@ void fail(const boost::system::error_code &ec, const char *msg)
 using namespace bean::net;
 rpc_server::rpc_server(int32_t port)
     : ioc_(), socket_(ioc_), acceptor_(ioc_), threadNum_(1)
+#ifdef USE_SSL
+    , context_(boost_net::ssl::context::sslv23)
+#endif
 {
     boost::system::error_code ec;
     tcp::endpoint endpoint(boost::asio::ip::tcp::v4(), port);
@@ -39,6 +42,15 @@ rpc_server::rpc_server(int32_t port)
         fail(ec, "listen");
         return;
     }
+#ifdef USE_SSL
+    context_.set_options( boost_net::ssl::context::default_workarounds 
+                    | boost_net::ssl::context::no_sslv2
+                    | boost_net::ssl::context::single_dh_use);
+    context_.set_password_callback(std::bind(&rpc_server::get_password, this));
+    context_.use_certificate_chain_file("ssl_file/server.crt");
+    context_.use_private_key_file("ssl_file/server.key", boost_net::ssl::context::pem);
+    context_.use_tmp_dh_file("ssl_file/dh1024.pem");
+#endif
 }
 
 void rpc_server::set_thread_num(uint32_t threadNum)
@@ -97,9 +109,13 @@ void rpc_server::on_accept(const boost::system::error_code &ec)
     else
     {
         std::cout << "connected from " << socket_.remote_endpoint().address() << " : " << socket_.remote_endpoint().port() << std::endl;
+#ifdef USE_SSL
+        auto session = std::make_shared<rpc_session>(std::move(socket_),context_, std::bind(&rpc_server::on_session_over, this, std::placeholders::_1));
+#else
         auto session = std::make_shared<rpc_session>(std::move(socket_), std::bind(&rpc_server::on_session_over, this, std::placeholders::_1));
+#endif
         session->set_services(&services_);
-        session->run();
+        session->run(true);
         {
             std::lock_guard<std::mutex> lck(mutex_);
             sessions_.push_back(session);

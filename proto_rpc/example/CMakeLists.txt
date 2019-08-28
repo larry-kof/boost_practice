@@ -8,6 +8,9 @@ find_package(Boost 1.69 COMPONENTS system REQUIRED)
 find_package(Protobuf REQUIRED)
 find_package(ZLIB REQUIRED)
 
+if(USE_SSL)
+    add_definitions(-DUSE_SSL)
+endif()
 set(CUR_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 set(BUILD_DIR ${PROJECT_BINARY_DIR})
 add_custom_command(OUTPUT test.pb.cc test.pb.h

@@ -8,6 +8,11 @@ endif()
 find_package(Boost 1.69 COMPONENTS system REQUIRED)
 find_package(Protobuf REQUIRED)
 
+if(USE_SSL)
+    add_definitions(-DUSE_SSL)
+    find_package(OpenSSL REQUIRED)
+endif(USE_SSL)
+
 set(CUR_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 set(BUILD_DIR ${PROJECT_BINARY_DIR})
 add_custom_command(OUTPUT rpc.pb.cc rpc.pb.h
@@ -26,7 +31,11 @@ include_directories(${BUILD_DIR})
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Werror -Wwrite-strings -Wshadow -Wno-unused-parameter -Wno-sign-conversion -std=c++11")
 
+set(LINK_LIBS ${Boost_LIBRARIES} ${Protobuf_LIBRARIES} z)
+if(USE_SSL)
+    set(LINK_LIBS ${LINK_LIBS} ${OPENSSL_LIBRARIES})
+endif()
 link_directories(${Boost_LIBRARY_DIRS} ${Protobuf_LIBRARY_DIRS})
-add_library(BeanRpc ${SRC_LIST} ${PROJECT_BINARY_DIR}/rpc.pb.cc)
+add_library(BeanRpc SHARED ${SRC_LIST} ${PROJECT_BINARY_DIR}/rpc.pb.cc)
 add_dependencies(BeanRpc proto_source)
-target_link_libraries(BeanRpc ${Boost_LIBRARIES} ${Protobuf_LIBRARIES} -lz)
+target_link_libraries(BeanRpc ${LINK_LIBS})
